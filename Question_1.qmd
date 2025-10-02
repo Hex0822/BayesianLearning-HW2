@@ -1,0 +1,21 @@
+---
+title: "Assignment2"
+author: "Tianyi Zhang"
+format: html
+---
+
+## Problem 5
+
+### Problem 5a)
+
+```{R}
+data = read.csv("https://github.com/mattiasvillani/BayesLearnCourse/raw/master/assignment/bugs.csv", 
+                header = TRUE)
+y = data$nBugs # response variable: the number of bugs, a vector with n = 91 observations
+X = data[,-1]  # 91 x 5 matrix with covariates
+X = as.matrix(X) # X was initially a data frame, but we want it to be matrix
+head(X)
+
+```
+
+
