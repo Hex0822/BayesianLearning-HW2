@@ -8,7 +8,7 @@ format: html
 
 ### Problem 5a)
 
-```{R}
+```{r}
 data = read.csv("https://github.com/mattiasvillani/BayesLearnCourse/raw/master/assignment/bugs.csv", 
                 header = TRUE)
 y = data$nBugs # response variable: the number of bugs, a vector with n = 91 observations
@@ -17,13 +17,9 @@ X = as.matrix(X) # X was initially a data frame, but we want it to be matrix
 head(X)
 
 ```
-```{R}
-install.packages("mvtnorm")
-
-```
 
 
-```{R}
+```{r}
 library(mvtnorm)
 tau_sq = 100
 
