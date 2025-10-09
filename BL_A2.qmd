@@ -478,23 +478,25 @@ fit = stan(
 
 ```
 
-After we fit the model using Stan, we can check the performance of simulations under different chains as shown in the following.
+After we fit the model using Stan, we can check whether the simulation lines under different chains are mixed well together, or whether the simulation lines are stationary using the trace plot. From the trace plots, we can identify that the lines of each chain are quite stationary and converge well together @fig-traceplot in the following.
 
-```{r, warning=FALSE}
+```{r, fig-traceplot, fig.cap="Traceplot of Coefficients", warning=FALSE}
 
 traceplot(fit)
 
 ```
 
+To confirm that the simulation lines under each chain does converge well, we can check the $\hat{R}$ scores of each parameter. From the following summary table, we can see that the $\hat{R}$ scores are all 1 which indicate the average pooled posterior variance are almost the same as the average within-chain variance. In other words, the simulation chains are mixed well and samples from the posterior can be trusted.
 
 ```{r, warning=FALSE}
 
 print(fit, pars = "beta")
-plot(fit, pars = "beta")
 
 ```
 
-```{r, warning=FALSE}
+Since the trace plot of each coefficient shows a stationary and well-mixed lines, the posteriors distributions of coefficients should have similar distributions. We can visualize the posterior distributions of betas using the histogram shown in @fig-coef-hist.
+
+```{r, fig-coef-hist, fig.cap="Posterior Distributions of Coefficients",warning=FALSE}
 
 beta_post = extract(fit, par = "beta")
 
@@ -509,6 +511,118 @@ for (i in 1:p){
 }
 
 ```
+
+We can also check whether the coefficients are significantly difference from zero using the equal-tailed 95% confidence interval. From @fig-coef-sig, we can see that $\beta_1$ (nCommits) variates around zero. Therefore, $\beta_1$ is significantly different from zero under 95% equal-tailed confidence interval. 
+
+```{r, fig-coef-sig, fig.cap="Significance of Coefficients",warning=FALSE}
+
+plot(fit, pars = "beta")
+
+```
+
+### Problem 7b)
+
+Given the upcoming release data:
+
+```{r, warning=FALSE}
+
+xNew = c(1, 10, 0.45, 0.5, 0.89)
+
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+
+set.seed(42)
+
+# beta prior setting
+p = 5
+tau = 10
+I_p = diag(5)
+Omega = tau^2 * I_p
+mu0 = as.vector(rep(0, p))
+
+n = nrow(X)
+y = data$nBugs
+
+X_new = matrix(xNew, nrow=1)
+
+post_stan_pred = "
+data {
+  int<lower=0> n;
+  int<lower=0> y[n];
+  int<lower=1> p;
+  matrix[n, p] X;
+  real<lower=0> tau;
+  
+  int<lower=0> N_new;
+  matrix[N_new, p] X_new;
+}
+
+parameters {
+  vector[p] beta;
+}
+
+model {
+  beta ~ normal(0, tau); // prior
+  y ~ poisson_log(X * beta); // likelihood/model
+}
+
+generated quantities{
+  vector[N_new] y_new;
+  
+  for (i in 1:N_new){
+    y_new[i] = poisson_log_rng(dot_product(X_new[i], beta)); // predictive model
+  }
+}
+
+"
+
+fit_pred = stan(
+  model_code = post_stan_pred,
+  data = list(n=n, y=y, p=p, X=X, tau=tau, N_new=1, X_new=X_new),
+  chains=4, iter=2000, seed=42,
+  control=list(adapt_delta=0.95)
+)
+
+```
+
+
+
+```{r, warning=FALSE}
+
+pred_post_y_new = extract(fit_pred)$y_new
+
+y_pred_tab = table(pred_post_y_new)
+y_pred_mode = as.numeric(names(y_pred_tab[which.max(y_pred_tab)]))
+
+hist(pred_post_y_new, breaks = 30, freq=FALSE,
+     col="lightblue",
+     main = "Posterior Predictive Distribution for The Number of Bugs",
+     xlab = "Predicted number of bugs")
+abline(v=y_pred_mode, col="red", lty=2, lwd=2)
+legend(
+  "topright",
+  legend = paste0("y_pred_Mode = ", y_pred_mode),
+  col = "red",
+  lwd = 2,
+  lty = 2,
+  bty = "n"
+)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
