@@ -2,3 +2,8 @@
 *.html
 *.pdf
 *.tex
+
+/BL_A2_files
+*.html
+*.pdf
+*.tex

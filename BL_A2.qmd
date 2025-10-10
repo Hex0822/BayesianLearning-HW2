@@ -435,7 +435,7 @@ Y_i \vert \boldsymbol{x}_i \overset{\mathrm{ind}}{\sim} \mathrm{Poisson}\Big(\la
 $$
 In the following, we use HMC sampler in Stan to sample the posterior distributions of coefficients by using the same settings as problem 5.
 
-```{r, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE, results='hide'}
 
 set.seed(42)
 
@@ -472,7 +472,7 @@ model {
 fit = stan(
   model_code = post_stan,
   data = list(n=n, y=y, p=p, X=X, tau=tau),
-  chains=4, iter=2000, seed=42,
+  chains=4, warmup=1000, iter=2000, seed=42,
   control=list(adapt_delta=0.95)
 )
 
@@ -530,8 +530,9 @@ xNew = c(1, 10, 0.45, 0.5, 0.89)
 
 ```
 
+Since we already the new data information, we can compute the value of $\lambda_{new}$ in the poisson regression model using the new data. Then, we can draw samples from the predictive distribution of $Y_{new}$ using the following code block.
 
-```{r, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE, results='hide'}
 
 set.seed(42)
 
@@ -581,29 +582,42 @@ generated quantities{
 fit_pred = stan(
   model_code = post_stan_pred,
   data = list(n=n, y=y, p=p, X=X, tau=tau, N_new=1, X_new=X_new),
-  chains=4, iter=2000, seed=42,
+  chains=4, warmup=1000, iter=2000, seed=42,
   control=list(adapt_delta=0.95)
 )
 
 ```
 
+After sampling from the predictive distribution of $Y_{new}$, we can visualize the distribution using a histogram as shown in @fig-hist-ynew.
 
+```{r, warning=FALSE, fig-hist-ynew, fig.cap="Predictive Distribution of Number of Bugs"}
 
-```{r, warning=FALSE}
+#install.packages("HDInterval")
+library(HDInterval)
 
 pred_post_y_new = extract(fit_pred)$y_new
 
-y_pred_tab = table(pred_post_y_new)
-y_pred_mode = as.numeric(names(y_pred_tab[which.max(y_pred_tab)]))
+#y_pred_tab = table(pred_post_y_new)
+#y_pred_mode = as.numeric(names(y_pred_tab[which.max(y_pred_tab)]))
+
+y_pred_mean = mean(pred_post_y_new)
+
+HPD_interval = hdi(pred_post_y_new, 0.95)
 
 hist(pred_post_y_new, breaks = 30, freq=FALSE,
      col="lightblue",
      main = "Posterior Predictive Distribution for The Number of Bugs",
      xlab = "Predicted number of bugs")
-abline(v=y_pred_mode, col="red", lty=2, lwd=2)
+abline(v=y_pred_mean, col="red", lty=2, lwd=2)
+abline(v=HPD_interval[1], col="red", lty=1, lwd=2)
+abline(v=HPD_interval[2], col="red", lty=1, lwd=2)
+
+
 legend(
   "topright",
-  legend = paste0("y_pred_Mode = ", y_pred_mode),
+  legend = c(paste0("y_pred_mean = ", y_pred_mean),
+             paste0("HPD lower = ", HPD_interval[1]),
+             paste0("HPD upper = ", HPD_interval[2])),
   col = "red",
   lwd = 2,
   lty = 2,
@@ -612,15 +626,119 @@ legend(
 
 ```
 
+### Problem 7c)
+
+Given the negative binomial regression for the number of bugs:
+
+$$
+Y_i \vert \boldsymbol{x}_i \overset{\mathrm{ind}}{\sim} \mathrm{NegBin}\Big(r, \mu_i = \exp\big(\boldsymbol{x}_i^\top \boldsymbol{\beta}\big)\Big)
+$$
+Prior information:
+
+$$
+\boldsymbol{\beta} \sim N(0,\tau^2 I_p)
+$$
+$$
+r > 0
+$$
+
+From the given information, we can know about the information of parameter $\mu_i$. However, we only know the feasible range of $r$ and do not know its specific distribution. Therefore, we choose a weakly informative prior to express our beliefs about the overdispersion parameter $r$. Finally, we can simulate the joint posterior distribution of $P(\beta, r\mid Y_i, x_i)$ as shown in the following code block.
+
+$$
+r \sim exponential(\theta = 1)
+$$
+
+```{r, warning=FALSE, results='hide'}
+
+# settings for Stan
+
+post_stan_nb = "
+  data {
+    int<lower=0> n;
+    int<lower=0> y[n];
+    int<lower=1> p;
+    matrix[n, p] X;
+    real<lower=0> tau;
+  }
+  
+  parameters {
+    vector[p] beta;
+    real<lower=0> r;
+  }
+  
+  model {
+    beta ~ normal(0, tau); //prior
+    r ~ exponential(1); //prior
+    
+    y ~ neg_binomial_2_log(X * beta, r); //likelihood/model
+  }
+
+"
+
+fit_nb = stan(
+  model_code = post_stan_nb,
+  data = list(n=n, y=y, p=p, X=X, tau=tau),
+  chains = 4, warmup=1000, iter = 2000, seed = 42,
+  control=list(adapt_delta=0.95)
+  
+)
+
+```
+
+We can check the trace plot and the $\hat{R}$ scores of each chain to see whether the lines are mixed-well and stationary. In @fig-traceplot-nb, the all the lines under different chains are stationary and converged well. The $\hat{R}$ scores of each parameter are also 1 which indicate our samples from the joint posterior are reliable.
+
+```{r, warning=FALSE, fig-traceplot-nb, fig.cap="Traceplot of Negtive Binomial Parameters"}
+
+print(fit_nb, par=c("beta", "r"))
+traceplot(fit_nb)
+
+```
+
+Since we have the samples from the joint posterior, we can visualize the marginal posterior distribution of the shape parameter $r$ using the histogram in @fig-hist-r.
+
+```{r, warning=FALSE, message=FALSE, fig-hist-r, fig.cap="Marginal Distribution of r"}
+
+post_draws_nb = extract(fit_nb)
+
+hist(post_draws_nb$r, col="lightblue",
+     freq=FALSE,
+     main="Posterior of Overdispersion Parameter r",
+     xlab="Overdispersion")
+abline(v = mean(post_draws_nb$r), col="red", lty=2, lwd=2)
+legend("topright",
+       legend=paste0("r_mean = ", mean(post_draws_nb$r)),
+       col="red",
+       lwd=2,
+       lty=2,
+       bty="n")
+
+```
+
+According to the variance of negative binomial model:
+
+$$
+Var(Y_i) = \mu_i + \frac{\mu_i^2}{r}
+$$
+$$
+r \to \infty
+$$
+
+$$
+Var(Y_i) = \mu_i
+$$
+
+As r $\to$ $\infty$, the variance of the model will be the same as Poisson model, meaning the negative binomial model will converge to a poisson model. However, the overdispersion parameter $r$ is quite small in our case, which means the Poisson model can not capture the extra variability present in the data. Consequently, using a Poisson regression model to model this dataset is not appropriate. In other words, the negative binomial model provides a better fit to the data because of the overdispersion parameter r.
+
+
+### Problem 7d)
+
+LOOO
+
+```{r, warning=FALSE}
 
 
 
-
-
-
-
-
-
+```
 
 
 
