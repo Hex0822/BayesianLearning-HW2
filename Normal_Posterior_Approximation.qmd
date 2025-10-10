@@ -25,8 +25,9 @@ tau_sq = 100
 
 logPostPois = function(beta,X,y,tau_sq){
   Prior = dmvnorm(beta,mean=rep(0,length(beta)),sigma = tau_sq*diag(length(beta)),log = TRUE)
-  Likelihood = sum(y*X%*%beta-exp(X%*%beta)-lgamma(y+1))
-  Posterior = Prior+Likelihood
+  #Likelihood = sum(y*X%*%beta-exp(X%*%beta)-lgamma(y+1))
+  loglike = sum(dpois(y,lambda = exp(X%*%beta),log=TRUE))
+  Posterior = Prior+loglike
   return(Posterior)
 }
 
@@ -44,6 +45,8 @@ mu_posterior = opt$par
 Sigma_posterior = solve(opt$hessian)
 
 mu_posterior
+# > mu_posterior
+# [1] -1.105291427 -0.009578895  1.444598369  3.181445388  2.143179057
 Sigma_posterior
 
 ```
@@ -51,4 +54,7 @@ Sigma_posterior
 
 ### Problem 5b)
 
+```{r}
 
+
+```
