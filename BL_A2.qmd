@@ -473,7 +473,7 @@ fit = stan(
   model_code = post_stan,
   data = list(n=n, y=y, p=p, X=X, tau=tau),
   chains=4, warmup=1000, iter=2000, seed=42,
-  control=list(adapt_delta=0.95)
+  control=list(adapt_delta=0.95) #step size/learning rate
 )
 
 ```
@@ -570,7 +570,7 @@ model {
 }
 
 generated quantities{
-  vector[N_new] y_new;
+  vector[N_new] y_new; // store predictive distribution
   
   for (i in 1:N_new){
     y_new[i] = poisson_log_rng(dot_product(X_new[i], beta)); // predictive model
@@ -732,17 +732,117 @@ As r $\to$ $\infty$, the variance of the model will be the same as Poisson model
 
 ### Problem 7d)
 
-LOOO
+Before evaluating Poisson regression and negative binominal model using LOO cross validation, we have to set up a log likelihood block in the Stan settings. The following is the Poisson model settings. From the outputs, we can see that the Poisson model can capture 98.9% of observations well (k-score < 0.7) and is relatively hard to predict the rest 1.1% (k-score >= 0.7) of observations.
+
 
 ```{r, warning=FALSE}
 
+pois_model = "
+data {
+  int<lower=0> n;
+  int<lower=0> y[n];
+  int<lower=1> p;
+  matrix[n, p] X;
+  real<lower=0> tau;
+}
+
+parameters {
+  vector[p] beta;
+}
+
+model {
+  beta ~ normal(0, tau); // prior
+  y ~ poisson_log(X * beta); // likelihood
+}
+
+generated quantities {
+  vector[n] log_lik;
+  for (i in 1:n){
+    log_lik[i] = poisson_log_lpmf(y[i] | X[i] * beta);
+  }
+}
+
+"
+
+fit_pois_model = stan(
+  model_code = pois_model,
+  data = list(n=n, y=y, p=p, X=X, tau=tau),
+  chains = 4, warmup = 1000, iter = 2000,
+  seed = 42, control = list(adapt_delta=0.95)
+)
+
+loglik_pois = extract_log_lik(fit_pois, parameter_name="log_lik", 
+                              merge_chains = "false")
+
+r_eff_pois = relative_eff(exp(loglik_pois))
+pois_loo = loo(loglik_pois, r_eff = r_eff_pois)
+print(pois_loo)
+
+```
+
+The following is the Negative binomial model settings in Stan. From the outputs, we can identify that the Negative Binomial model can capture all the observations well (k-score < 0.7).
+
+```{r, warning=FALSE}
+
+nb_model = "
+  data {
+    int<lower=0> n;
+    int<lower=0> y[n];
+    int<lower=1> p;
+    matrix[n, p] X;
+    real<lower=0> tau;
+  }
+  
+  parameters {
+    vector[p] beta;
+    real<lower=0> r;
+  }
+  
+  model {
+    beta ~ normal(0, tau); //prior
+    r ~ exponential(1); //prior
+    
+    y ~ neg_binomial_2_log(X * beta, r); //likelihood/model
+  }
+  
+  generated quantities {
+    vector[n] log_lik;
+    for (i in 1:n){
+      log_lik[i] = neg_binomial_2_log_lpmf(y[i] | X[i] * beta, r);
+    }
+  }
+
+"
+
+fit_nb_model = stan(
+  model_code = nb_model,
+  data = list(n=n, y=y, p=p, X=X, tau=tau),
+  chains = 4, warmup=1000, iter = 2000, seed = 42,
+  control=list(adapt_delta=0.95)
+  
+)
+
+loglik_nb = extract_log_lik(fit_nb_model, parameter_name = "log_lik",
+                            merge_chains = "false")
+
+r_eff_nb = relative_eff(exp(loglik_nb))
+nb_loo = loo(loglik_nb, r_eff = r_eff_nb)
+print(nb_loo)
 
 
 ```
 
+After everything is settle, we can evaluate the performance of Poisson and Negative binomial models using the ELPD-LOO cross validation. From the evaluation table, we can see that the ELPD_diff of Negative Binomial model is much higher and SE_diff is much lower than Poisson model's. It demonstrates that Negative Binomial model has a better generalization and predictive performance for the observation data. Consequently, Negative Binomial model is more preferable than Poisson model in our case.
 
+```{r, warning=FALSE}
 
+model_evaluation = loo_compare(list(
+  "Poisson" = pois_loo,
+  "NegBinomial" = nb_loo))
 
+print(model_evaluation)
+
+```
 
 
 
