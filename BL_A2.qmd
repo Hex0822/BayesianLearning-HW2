@@ -771,7 +771,7 @@ fit_pois_model = stan(
   seed = 42, control = list(adapt_delta=0.95)
 )
 
-loglik_pois = extract_log_lik(fit_pois, parameter_name="log_lik", 
+loglik_pois = extract_log_lik(fit_pois_model, parameter_name="log_lik", 
                               merge_chains = "false")
 
 r_eff_pois = relative_eff(exp(loglik_pois))
