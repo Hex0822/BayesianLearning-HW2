@@ -7,3 +7,8 @@
 *.html
 *.pdf
 *.tex
+
+/BL_A2_P7_files
+*.html
+*.pdf
+*.tex
