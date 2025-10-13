@@ -14,8 +14,6 @@ data = read.csv("https://github.com/mattiasvillani/BayesLearnCourse/raw/master/a
 y = data$nBugs # response variable: the number of bugs, a vector with n = 91 observations
 X = data[,-1]  # 91 x 5 matrix with covariates
 X = as.matrix(X) # X was initially a data frame, but we want it to be matrix
-head(X)
-
 ```
 
 
@@ -42,11 +40,11 @@ opt = optim(par = rep(0,5),
             hessian=TRUE)
 
 mu_posterior = opt$par
-Sigma_posterior = solve(opt$hessian)
+names(mu_posterior)=c('intercept','nCommit','propC','propJava','complexity')
+Sigma_posterior = solve(-opt$hessian)
 
 mu_posterior
-# > mu_posterior
-# [1] -1.105291427 -0.009578895  1.444598369  3.181445388  2.143179057
+
 Sigma_posterior
 
 ```
@@ -55,6 +53,34 @@ Sigma_posterior
 ### Problem 5b)
 
 ```{r}
+library(MASS)
+n_sample = 20000
+names(mu_posterior)=c('intercept','nCommit','propC','propJava','complexity')
+sample = MASS::mvrnorm(n_sample, mu = mu_posterior,Sigma = Sigma_posterior)
+
+par(mfrow=c(2,3))
+
+significant_review = vector(mode = "logical",ncol(sample))
+names(significant_review)=c('intercept','nCommit','propC','propJava','complexity')
+for (i in 1:ncol(sample)){
+  param_name = colnames(sample)[i]
+  param_sample = sample[,i]
+
+  hist(param_sample,
+    main = paste("Marginal Posterior of ", param_name),
+    xlab = 'Parameter Value',
+    col = "blue")
+
+  credible_interval = quantile(param_sample,probs = c(0.025,0.975))
+  abline(v = credible_interval, col = 'red', lty=2,lwd=2)
+  abline(v=0, col = 'green',lty=1,lwd=2)
+  #legend("topright",legend=c("95% CI","Zero Line"),col=c("red","green"),lty=c(2,1),bty="n")
+
+  is_significant = (credible_interval[1]>0)|(credible_interval[2]<0)
+  significant_review[i] <- is_significant
+}
+
+significant_review
 
 
 ```
