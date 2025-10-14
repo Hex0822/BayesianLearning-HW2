@@ -1,15 +1,11 @@
----
-title: "Assignment2"
-author: "Tianyi Zhang"
-format: html
----
-
 ## Problem 5
 In this problem, we are exploring how the programming features affect the number of bugs. We use Poission regression model 
 $$ Y_i|\textbf{x}_i\overset{ind}{\sim} Poisson(\lambda_i=exp(\textbf{x}_i^T \beta))$$
 
 Note that the features for the $i$ th observation $\textbf{x}_i=(x_{1,i},...,x_{p,i})^T$ is the $i$ th row of the matrix x. 
+
 ### Problem 5a)
+
 In this task we can say the model of the data is Poisson regression model, and the prior is $\beta \sim N(0,\tau^2 I_p)$ where $I_p$ is the $p*p$ identity matrix. Note that this is a Multivariate Normal Distribution as prior, so the parameter $\beta$ means the vector of regression coefficients:
 
 $$\beta = 

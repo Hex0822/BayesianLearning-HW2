@@ -1,0 +1,26 @@
+---
+title: "Home assignment - Part B"
+subtitle: "GroupA-3"
+author:   
+  - Junqi Hu
+  - Tianyi Zhang   
+  - Jinzhe Yang
+date: last-modified
+format: 
+  pdf: default
+toc: true
+language: 
+  title-block-author-single: " "
+toc-title-document: "Content"
+crossref-fig-title: "Figure"
+theme: lumen
+title-block-banner-color: Primary
+callout-warning-caption: "Warning"
+callout-note-caption: "Note!"
+callout-tip-caption: "Tip"
+editor: visual
+---
+
+{{< include Normal_Posterior_Approximation.qmd >}}
+
+{{< include BL_A2_P7.qmd >}}

@@ -1,8 +1,3 @@
----
-title: "BL_A2_P7"
-format: html
----
-
 ## Problem 7
 
 ```{r, warning=FALSE, message=FALSE}
