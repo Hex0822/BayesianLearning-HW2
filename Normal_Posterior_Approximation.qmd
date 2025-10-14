@@ -5,8 +5,22 @@ format: html
 ---
 
 ## Problem 5
+In this problem, we are exploring how the programming features affect the number of bugs. We use Poission regression model 
+$$ Y_i|\textbf{x}_i\overset{ind}{\sim} Poisson(\lambda_i=exp(\textbf{x}_i^T \beta))$$
 
+Note that the features for the $i$ th observation $\textbf{x}_i=(x_{1,i},...,x_{p,i})^T$ is the $i$ th row of the matrix x. 
 ### Problem 5a)
+In this task we can say the model of the data is Poisson regression model, and the prior is $\beta \sim N(0,\tau^2 I_p)$ where $I_p$ is the $p*p$ identity matrix. Note that this is a Multivariate Normal Distribution as prior, so the parameter $\beta$ means the vector of regression coefficients:
+
+$$\beta = 
+\begin{pmatrix}
+  \beta_0 \text{ (intercept)} \\
+  \beta_1 \text{ (nCommits)}  \\
+  \beta_2 \text{ (propC)}     \\
+  \beta_3 \text{ (propJava)}   \\
+  \beta_4 \text{ (complexity)}
+\end{pmatrix}$$
+and $\tau^2$ is the scaling factor, which contains the degree of our uncertainty about the prior. If $\tau$ is getting bigger, it can be called a fairly non-informative prior, which means that we are very uncertain about the current coefficient from the prior, and the posterior is mainly decided by the data.
 
 ```{r}
 data = read.csv("https://github.com/mattiasvillani/BayesLearnCourse/raw/master/assignment/bugs.csv", 
@@ -14,8 +28,6 @@ data = read.csv("https://github.com/mattiasvillani/BayesLearnCourse/raw/master/a
 y = data$nBugs # response variable: the number of bugs, a vector with n = 91 observations
 X = data[,-1]  # 91 x 5 matrix with covariates
 X = as.matrix(X) # X was initially a data frame, but we want it to be matrix
-head(X)
-
 ```
 
 
@@ -23,10 +35,13 @@ head(X)
 library(mvtnorm)
 tau_sq = 100
 
+# set a log-posterior function for optimization
+# beta is parameter to be optimized, positioning it to the first place
 logPostPois = function(beta,X,y,tau_sq){
   Prior = dmvnorm(beta,mean=rep(0,length(beta)),sigma = tau_sq*diag(length(beta)),log = TRUE)
-  Likelihood = sum(y*X%*%beta-exp(X%*%beta)-lgamma(y+1))
-  Posterior = Prior+Likelihood
+  #Likelihood = sum(y*X%*%beta-exp(X%*%beta)-lgamma(y+1))
+  loglike = sum(dpois(y,lambda = exp(X%*%beta),log=TRUE))
+  Posterior = Prior+loglike
   return(Posterior)
 }
 
@@ -41,9 +56,12 @@ opt = optim(par = rep(0,5),
             hessian=TRUE)
 
 mu_posterior = opt$par
-Sigma_posterior = solve(opt$hessian)
+names(mu_posterior)=c('intercept','nCommit','propC','propJava','complexity')
+# A legal Sigma must be positive definite, but hessian is negative definite. So we fetch negative hessian.
+Sigma_posterior = solve(-opt$hessian)
 
 mu_posterior
+
 Sigma_posterior
 
 ```
@@ -51,4 +69,38 @@ Sigma_posterior
 
 ### Problem 5b)
 
+In this task, we use posterior distribution to simulate the distribution of coefficients, i.e. marginal posterior distribution. Also, we use equal-tailed interval to evaluate the credible interval. Due to the difference definition of significance, in Bayesian significance test, we judge it by whether $\beta_j=0$ falls into the interval.
+
+```{r}
+library(MASS)
+n_sample = 20000
+names(mu_posterior)=c('intercept','nCommit','propC','propJava','complexity')
+sample = mvrnorm(n_sample, mu = mu_posterior,Sigma = Sigma_posterior)
+
+par(mfrow=c(2,3))
+
+significant_review = vector(mode = "logical",ncol(sample))
+names(significant_review)=c('intercept','nCommit','propC','propJava','complexity')
+for (i in 1:ncol(sample)){
+  param_name = colnames(sample)[i]
+  param_sample = sample[,i]
+
+  hist(param_sample,
+    main = paste("Marginal Posterior of ", param_name),
+    xlab = 'Parameter Value',
+    col = "blue")
+
+  credible_interval = quantile(param_sample,probs = c(0.025,0.975))
+  abline(v = credible_interval, col = 'red', lty=2,lwd=2)
+  abline(v=0, col = 'green',lty=1,lwd=2)
+  #legend("topright",legend=c("95% CI","Zero Line"),col=c("red","green"),lty=c(2,1),bty="n")
+
+  is_significant = (credible_interval[1]>0)|(credible_interval[2]<0)
+  significant_review[i] <- is_significant
+}
+
+significant_review
+
+
+```
 
