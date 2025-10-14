@@ -7,7 +7,13 @@ author:
   - Jinzhe Yang
 date: last-modified
 format: 
-  pdf: default
+  pdf:
+    keep-tex: true
+    include-in-header: 
+       text: |
+         \usepackage{fvextra}
+         \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+         \DefineVerbatimEnvironment{OutputCode}{Verbatim}{breaklines,commandchars=\\\{\}}
 toc: true
 language: 
   title-block-author-single: " "
