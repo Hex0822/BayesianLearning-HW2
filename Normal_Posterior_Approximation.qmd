@@ -21,9 +21,12 @@ and $\tau^2$ is the scaling factor, which contains the degree of our uncertainty
 ```{r}
 data = read.csv("https://github.com/mattiasvillani/BayesLearnCourse/raw/master/assignment/bugs.csv", 
                 header = TRUE)
-y = data$nBugs # response variable: the number of bugs, a vector with n = 91 observations
-X = data[,-1]  # 91 x 5 matrix with covariates
-X = as.matrix(X) # X was initially a data frame, but we want it to be matrix
+y = data$nBugs 
+# response variable: the number of bugs, a vector with n = 91 observations
+X = data[,-1]  
+# 91 x 5 matrix with covariates
+X = as.matrix(X) 
+# X was initially a data frame, but we want it to be matrix
 ```
 
 
@@ -34,7 +37,10 @@ tau_sq = 100
 # set a log-posterior function for optimization
 # beta is parameter to be optimized, positioning it to the first place
 logPostPois = function(beta,X,y,tau_sq){
-  Prior = dmvnorm(beta,mean=rep(0,length(beta)),sigma = tau_sq*diag(length(beta)),log = TRUE)
+  Prior = dmvnorm(beta,
+                  mean=rep(0,length(beta)),
+                  sigma = tau_sq*diag(length(beta)),
+                  log = TRUE)
   #Likelihood = sum(y*X%*%beta-exp(X%*%beta)-lgamma(y+1))
   loglike = sum(dpois(y,lambda = exp(X%*%beta),log=TRUE))
   Posterior = Prior+loglike
@@ -53,7 +59,9 @@ opt = optim(par = rep(0,5),
 
 mu_posterior = opt$par
 names(mu_posterior)=c('intercept','nCommit','propC','propJava','complexity')
-# A legal Sigma must be positive definite, but hessian is negative definite. So we fetch negative hessian.
+# A legal Sigma must be positive definite, 
+# but hessian in fnscale=-1 is negative definite,
+# So we fetch negative hessian.
 Sigma_posterior = solve(-opt$hessian)
 
 mu_posterior
@@ -69,6 +77,7 @@ In this task, we use posterior distribution to simulate the distribution of coef
 
 ```{r}
 library(MASS)
+library(HDInterval)
 
 # simulate data
 n_sample = 20000
@@ -84,14 +93,17 @@ for (i in 1:ncol(sample)){
   param_sample = sample[,i]
 
   hist(param_sample,
-    main = paste("Marginal Posterior of ", param_name),
+    main = paste("MP of ", param_name),
     xlab = 'Parameter Value',
     col = "blue")
 
   credible_interval = quantile(param_sample,probs = c(0.025,0.975))
   abline(v = credible_interval, col = 'red', lty=2,lwd=2)
   abline(v=0, col = 'green',lty=1,lwd=2)
-  #legend("topright",legend=c("95% CI","Zero Line"),col=c("red","green"),lty=c(2,1),bty="n")
+  #legend("topright",legend=c("95% CI","Zero Line"),
+  #        col=c("red","green"),
+  #        lty=c(2,1),
+  #        bty="n")
 
   is_significant = (credible_interval[1]>0)|(credible_interval[2]<0)
   significant_review[i] <- is_significant
@@ -102,3 +114,21 @@ significant_review
 
 ```
 
+Bonus: Here's the implementation of Highest Posterior Density Interval.
+
+```{r}
+par(mfrow=c(2,3))
+
+for (i in 1:ncol(sample)){
+  param_name = colnames(sample)[i]
+  param_sample = sample[,i]
+
+  hist(param_sample,
+    main = paste("HDI in ", param_name),
+    xlab = 'Parameter Value',
+    col = "blue")
+  
+  hpdi_interval = hdi(param_sample, credMass = 0.95)
+  abline(v = hpdi_interval, col = 'red', lty=2,lwd=2)
+}
+```
