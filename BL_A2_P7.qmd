@@ -239,7 +239,7 @@ $$
 r > 0
 $$
 
-From the given information, we can know about the information of parameter $\mu_i$. However, we only know the feasible range of $r$ and do not know its specific distribution.Therefore, we decide to choose a weakly informative prior to express our beliefs about the overdispersion parameter $r$ and avoid the posterior dominated by the prior. We choose priors with similar distributions as negative binomial distribution such as exponential, gamma, and log-normal distributions. For simplicity, we choose the exponential prior with rate parameter $\theta = 1$ which is a weakly informative prior. Finally, we can simulate the joint posterior distribution of $P(\beta, r\mid Y_i, x_i)$ as shown in the following code block.
+From the given information, we can know about the information of parameter $\mu_i$. However, we only know the feasible range of $r$ and do not know its specific distribution. Therefore, we usually decide to choose a weakly informative prior to express our beliefs about the overdispersion parameter $r$ , and avoid the posterior dominated by the prior when observations are small. We choose priors with similar distributions as negative binomial distribution such as exponential, gamma, and log-normal distributions. Nevertheless, for simplicity in our case, we use the exponential prior with rate parameter $\theta = 1$ which is an informative prior. Finally, we can simulate the joint posterior distribution of $P(\beta, r\mid Y_i, x_i)$ as shown in the following code block.
 
 $$
 r \sim exponential(\theta = 1)
