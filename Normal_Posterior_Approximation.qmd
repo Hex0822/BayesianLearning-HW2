@@ -73,12 +73,14 @@ In this task, we use posterior distribution to simulate the distribution of coef
 
 ```{r}
 library(MASS)
+
+# simulate data
 n_sample = 20000
 names(mu_posterior)=c('intercept','nCommit','propC','propJava','complexity')
 sample = mvrnorm(n_sample, mu = mu_posterior,Sigma = Sigma_posterior)
 
 par(mfrow=c(2,3))
-
+# set a vector to store significant status
 significant_review = vector(mode = "logical",ncol(sample))
 names(significant_review)=c('intercept','nCommit','propC','propJava','complexity')
 for (i in 1:ncol(sample)){
