@@ -23,4 +23,6 @@ editor: visual
 
 {{< include Normal_Posterior_Approximation.qmd >}}
 
+{{< include p6.qmd >}}
+
 {{< include BL_A2_P7.qmd >}}

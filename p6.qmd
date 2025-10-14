@@ -1,0 +1,171 @@
+```{r}
+#| include: false
+library(mvtnorm)
+```
+```{r}
+#| include: false
+data <- read.csv("https://github.com/mattiasvillani/BayesLearnCourse/raw/master/assignment/bugs.csv",
+    header = TRUE
+)
+y <- data$nBugs # response variable: the number of bugs, a vector with n = 91 observations
+X <- data[, -1] # 91 x 5 matrix with covariates
+X <- as.matrix(X) # X was initially a data frame, but we want it to be matrix
+head(X)
+```
+
+```{r}
+#| include: false
+# theta: variable of function
+# x: sample
+# mu_0: prior hyperparameter
+# sigma_0: prior hyperparameter
+LogPostPoissonReg <- function(theta, X, y, mu_0, sigma_0) {
+    lambda <- exp(X %*% theta) # for every observation, they have a lambda
+    logLik <- sum(dpois(y, lambda = lambda, log = TRUE))
+    logPrior <- dmvnorm(theta, mean = mu_0, sigma = sigma_0, log = TRUE)
+    logPost <- logLik + logPrior
+    return(logPost)
+}
+```
+
+```{r}
+#| include: false
+# some constants
+covariate_length <- length(X[1, ])
+theta <- rep(1, covariate_length)
+mu_0 <- rep(0, covariate_length)
+tau <- 10
+sigma_0 <- tau * diag(covariate_length)
+```
+
+```{r}
+#| include: false
+# maximze the posterior
+initial_theta <- theta
+optimResult <- optim(par = initial_theta, fn = LogPostPoissonReg, gr = NULL, X = X, y = y, mu_0 = mu_0, sigma_0 = sigma_0, method = c("BFGS"), control = list(fnscale = -1), hessian = TRUE)
+
+postMode <- optimResult$par
+postCov <- -solve(optimResult$hessian)
+
+plotMarginal <- function(draws) {
+    beta_1 <- draws[, 1]
+    beta_2 <- draws[, 2]
+    beta_3 <- draws[, 3]
+    beta_4 <- draws[, 4]
+    beta_5 <- draws[, 5]
+
+    par(mfrow = c(3, 2), mar=c(2,2,2,2))
+    hist(beta_1,
+        freq = FALSE, col = "lightgray"
+    )
+    hist(beta_2,
+        freq = FALSE, col = "lightgray"
+    )
+    hist(beta_3,
+        freq = FALSE, col = "lightgray"
+    )
+    hist(beta_4,
+        freq = FALSE, col = "lightgray"
+    )
+    hist(beta_5,
+        freq = FALSE, col = "lightgray"
+    )
+}
+```
+
+## Problem 6 - Posterior sampling with the Metropolis-Hastings algorithm
+### Problem 6a)
+
+```{r}
+RWMsampler <- function(logPostFunc, initVal, nSim, nBurn, Sigma, c, ...) {
+    # Run the algorithm for nSim iterations
+    # using the multivariate proposal N(theta_previous_draw, c*Sigma)
+    # Return the posterior draws after discarding nBurn iterations as burn-in
+    draws <- matrix(rep(0, nSim * 5), ncol = 5)
+    for (i in 1:nSim) {
+        temp <- as.vector(rmvnorm(1, mean = initVal, sigma = c * Sigma))
+        alpha <- min(1, exp(logPostFunc(temp, ...) - logPostFunc(initVal, ...)))
+        u <- runif(1)
+        if (alpha >= u) {
+            # effective draw
+            draws[i, ] <- temp
+        } else {
+            draws[i, ] <- initVal
+        }
+
+        # update previous value
+        initVal <- draws[i, ]
+    }
+
+    return(draws[(nBurn + 1):nSim, ])
+}
+```
+
+### Problem 6b)
+```{r}
+nSim <- 5000
+nBurn <- 1000
+inital_value = rep(0, covariate_length)
+c = 0.5
+Sigma = postCov
+draws <- RWMsampler(LogPostPoissonReg, inital_value, nSim, nBurn, Sigma, c, X, y, mu_0 = mu_0, sigma_0 = sigma_0)
+head(draws, 20)
+
+plotMarginal(draws)
+```
+
+### Problem 6c)
+#### Plot the MCMC trajectories
+plot all draws seperated by each parameter.
+```{r}
+matplot(draws,
+    type = "l", lwd = 1, lty = 1,
+    col = 1:5, xlab = "Observation", ylab = "Value", main = "MCMC Trajectories"
+)
+
+legend("topright", legend = paste("Beta", 1:5), col = 1:5, lty = 1, lwd = 1)
+```
+
+#### Cumulative Estimates of Posterior Mean
+Use sample mean as estimator to estimate posterior mean. In large sample, sample mean is around a stable value, which meets convergence requirement.
+```{r}
+drawCumulative <- function(draws) {
+    posterior_mean <- matrix(rep(0, length(draws)), ncol = dim(draws)[2])
+    for (i in seq(1, dim(draws)[1])) {
+        for (j in seq(1, dim(draws)[2])) {
+            posterior_mean[i, j] <- mean(draws[1:i, j])
+        }
+    }
+
+    matplot(posterior_mean,
+        type = "l", lwd = 1, lty = 1,
+        col = 1:5, xlab = "#draw", ylab = "sample mean", main = "Cumulative Estimates of Posterior Mean"
+    )
+
+    legend("topright", legend = paste("Beta", 1:5), col = 1:5, lty = 1, lwd = 1)
+}
+
+drawCumulative(draws)
+```
+
+#### Rerun the Sampler with Unit Vector Initial Value
+Change the initial value of proposed distribution from zero vector to identity vector, the posterior estimates has not been changed, still converging to same estimates. So changing the initial value doesn't influence the convergence.
+```{r}
+inital_value = rep(1, covariate_length) # set the new initial value
+new_draws <- RWMsampler(LogPostPoissonReg, inital_value, nSim, nBurn, Sigma, c, X, y, mu_0 = mu_0, sigma_0 = sigma_0)
+
+drawCumulative(new_draws)
+```
+
+### Problem 6d)
+Set the covariance matrix to $c \cdot I_p$, re-run the random walk, and get sample. Compared to samples from Problem 6b), the current samples has more ineffective draws, i.e. many draws are rejected and remained as previous effective draw, which shows many duplicate draws in sample. 
+
+Because the current covariance matrix is much larger, that means when getting draws from proposed distribution, many values with small density will be targeted, and the acceptance probability will be low, thus making this draw rejected and stay. And the correlation between each random variable are ignored in current covariance matrix, which makes proposed draws move to the ridge often and low acceptance. 
+
+\begin{equation} 
+\alpha = \min\left(1, \frac{p(\theta^{i} \mid y)}{p(\theta^{(i-1)} \mid y)}\right)
+\end{equation}
+```{r}
+new_covariance_draws <- RWMsampler(LogPostPoissonReg, rep(0, 5), nSim, nBurn, Sigma = diag(5), c = 1, X, y, mu_0 = mu_0, sigma_0 = sigma_0)
+head(new_covariance_draws, 20)
+```
