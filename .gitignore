@@ -12,3 +12,8 @@
 *.html
 *.pdf
 *.tex
+
+/Normal_Posterior_Approximation_files
+*.html
+*.pdf
+*.tex
